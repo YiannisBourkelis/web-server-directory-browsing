@@ -71,7 +71,8 @@ void HTML_MessageProcessor::processMessageQueue()
                                "<html><head><title>Hello World</title></head><h1>Hello World</h1></html>");
                                */
             std::string resp;
-            onClientRequest(client_session.message, resp);
+            std::string request(client_session.message.begin(), client_session.message.end());
+            onClientRequest(request, resp);
 
             int snd;
             size_t total_bytes = 0;
@@ -97,8 +98,10 @@ void HTML_MessageProcessor::processMessageQueue()
             }//while send loop
 
             {
-                std::unique_lock<std::mutex> qlk(HTML_MessageProcessor::qclients_close_mutex);
-                HTML_MessageProcessor::qclients_close.push_back(std::move(client_session));
+                if (!keep_alive){
+                    //std::unique_lock<std::mutex> qlk(HTML_MessageProcessor::qclients_close_mutex);
+                    //HTML_MessageProcessor::qclients_close.push_back(std::move(client_session));
+                }
             }
 
             //shutdown(client_session.socket, SHUT_RDWR);
@@ -107,25 +110,24 @@ void HTML_MessageProcessor::processMessageQueue()
     }
 }
 
-void HTML_MessageProcessor::onClientRequest(const std::vector<char> &request, std::string &response){
-std::string req(request.begin(), request.end());
-
+void HTML_MessageProcessor::onClientRequest(const std::string &request, std::string &response){
 //lamvanw to directory pou zitithike
 //GET dir /r/n
-std::string req_string(request.begin(), request.end());
-
-int rv = req_string.find_first_of("\r\n");
-std::string get_line(req_string.begin() + 4, req_string.begin() + rv - 1);
+int rv = request.find_first_of("\r\n");
+std::string get_line(request.begin() + 4, request.begin() + rv - 1);
 int last_space = get_line.find_last_of(" ", get_line.size());
 std::string url(get_line.begin(), get_line.begin() + last_space);
 
 std::ostringstream os;
 QDir directory;
-QFileInfoList list = directory.entryInfoList();
-
 if (url != "/"){
-    directory.setCurrent(QString::fromStdString(url));
+    bool chdir = directory.setCurrent(QString::fromStdString(url));
+    if(!chdir){
+       qwe("could not change directory","");
+    }
 }
+
+QFileInfoList list = directory.entryInfoList();
 
 
 
@@ -140,7 +142,7 @@ if (url != "/"){
 
   std::string response_body("<html><head><title>Hello World!!!!!</title></head><body><h1>Hello World 1</h1>" +
                                os.str() +
-                               "</body></html>\r\n\r\n");
+                               "</body></html>");
 
 
    std::string response_header ("HTTP/1.1 200 OK\n"

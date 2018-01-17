@@ -20,7 +20,7 @@ public:
     virtual void onNewClientMessage(const ClientSession &client_session);
 
     void processMessageQueue();
-    void onClientRequest(const std::vector<char> &request, std::string &response);
+    void onClientRequest(const std::string &request, std::string &response);
 private:
     //variables
     std::queue<ClientSession> qclients_;
