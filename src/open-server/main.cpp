@@ -5,10 +5,18 @@
 #include <QCoreApplication>
 #include "poll_server.h"
 #include "html_messagecomposer.h"
+#include <csignal>
+
+void signal_handler(int signal)
+{
+  std::cout << signal;
+}
 
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
+
+    std::signal(SIGINT, signal_handler);
 
     PollServer pollserver;
 

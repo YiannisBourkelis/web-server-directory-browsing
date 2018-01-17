@@ -50,6 +50,9 @@ public:
     //variables
     std::unique_ptr<MessageComposer> msgComposer;
 
+    //static variable
+    static int s_listen_sd;
+
     //methods
 
     //starts the poll server

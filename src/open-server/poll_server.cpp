@@ -11,12 +11,17 @@
 // Simple TLS Server
 // https://wiki.openssl.org/index.php/Simple_TLS_Server
 
-//an echo server using the libev library
-//https://sourceforge.net/p/libevent-thread/code/ci/master/tree/echoserver_threaded.c#l265
+// an echo server using the libev library
+// https://sourceforge.net/p/libevent-thread/code/ci/master/tree/echoserver_threaded.c#l265
+
+// Thread Pools in NGINX Boost Performance 9x!
+// https://www.nginx.com/blog/thread-pools-boost-performance-9x/
 
 #include "poll_server.h"
 #include "helper_functions.h"
 #include "html_messageprocessor.h"
+
+int PollServer::s_listen_sd;
 
 PollServer::PollServer()
 {
@@ -221,6 +226,8 @@ void PollServer::start(int server_port, protocol ip_protocol)
     exit(-1);
   }
 
+  PollServer::s_listen_sd = listen_sd;
+
   /*************************************************************/
   /* Initialize the pollfd structure                           */
   /*************************************************************/
@@ -322,7 +329,7 @@ void PollServer::start(int server_port, protocol ip_protocol)
           new_sd = accept(listen_sd, NULL, NULL);
           if (new_sd < 0)
           {
-            if (errno != EWOULDBLOCK)
+            if (errno != EWOULDBLOCK || errno != EAGAIN)
             {
               perror("  accept() failed");
               //end_server = true;
@@ -382,7 +389,7 @@ void PollServer::start(int server_port, protocol ip_protocol)
 
           if (rc < 0)
           {
-            if (errno != EWOULDBLOCK)
+            if (errno != EWOULDBLOCK || errno != EAGAIN)
             {
               perror("  recv() failed");
               close_conn = true;

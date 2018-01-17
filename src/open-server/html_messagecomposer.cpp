@@ -28,13 +28,13 @@ void HTML_MessageComposer::onClientDataArrived(const int socket, int fds_index, 
         ClientSession tmpcsession;
         tmpcsession.socket = socket;
         tmpcsession.fds_index = fds_index;
-        std::move(data.begin(), data.begin() + data_size, std::back_inserter(tmpcsession.message));
+        std::move(data.begin(), data.begin() + data_size, std::back_inserter(tmpcsession.recv_message));
         messages_[socket] = tmpcsession;
         //elegxo ean to mynima exe symplirwthei
         verifyMessageComplete(messages_.find(socket));
     } else {
         //proyparxoun dedomena, opote ta kanw merge
-        stored_client->second.message.insert(stored_client->second.message.end(), data.begin(), data.end());
+        stored_client->second.recv_message.insert(stored_client->second.recv_message.end(), data.begin(), data.end());
         //elegxo ean to mynima exe symplirwthei
         verifyMessageComplete(stored_client);
     }
@@ -42,11 +42,11 @@ void HTML_MessageComposer::onClientDataArrived(const int socket, int fds_index, 
 
 bool HTML_MessageComposer::verifyMessageComplete(const std::map<int, ClientSession>::iterator msg_it)
 {
-    if (msg_it->second.message.size() > 3){
-        if ( (msg_it->second.message.at(msg_it->second.message.size() - 4) == 13) && // \r
-             (msg_it->second.message.at(msg_it->second.message.size() - 3) == 10) && // \n
-             (msg_it->second.message.at(msg_it->second.message.size() - 2) == 13) && // \r
-             (msg_it->second.message.at(msg_it->second.message.size() - 1) == 10) ){ // \n
+    if (msg_it->second.recv_message.size() > 3){
+        if ( (msg_it->second.recv_message.at(msg_it->second.recv_message.size() - 4) == 13) && // \r
+             (msg_it->second.recv_message.at(msg_it->second.recv_message.size() - 3) == 10) && // \n
+             (msg_it->second.recv_message.at(msg_it->second.recv_message.size() - 2) == 13) && // \r
+             (msg_it->second.recv_message.at(msg_it->second.recv_message.size() - 1) == 10) ){ // \n
 
             msg_processor_->onNewClientMessage(std::move(msg_it->second));
             messages_.erase(msg_it);           

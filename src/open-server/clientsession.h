@@ -10,7 +10,10 @@ public:
 
     int socket;
     int fds_index;
-    std::vector<char> message;
+    bool keep_alive = true;
+    std::vector<char> recv_message;
+    std::vector<char> send_message;
+
 };
 
 #endif // CLIENTSESSION_H
