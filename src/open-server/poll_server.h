@@ -5,10 +5,6 @@
 #ifndef POLL_SERVER_H
 #define POLL_SERVER_H
 
-#include <openssl/bio.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-
 #include <map>
 
 #include <stdio.h>
@@ -18,7 +14,9 @@
 #include <vector>
 #include <string.h> //memset
 #include <QThread> //sleep
+
 #include "message_composer.h"
+#include <memory>
 
 #ifndef WIN32
 #include <sys/ioctl.h>
@@ -80,8 +78,8 @@ public:
     void checkClosedSessions();
 private:
     //variables
-    SSL_CTX *sslctx_;
-    std::map<int, SSL*> sslmap_;
+    //SSL_CTX *sslctx_;
+    //std::map<int, SSL*> sslmap_;
     bool use_ssl_ = false;
     struct pollfd fds[100000];
 

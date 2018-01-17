@@ -24,19 +24,24 @@ PollServer::PollServer()
 
 void PollServer::InitializeSSL()
 {
+    /*
     SSL_load_error_strings();
     SSL_library_init(); //xreiazetai gia to linux logo bug se palaioteres ekdoseis openssl
     OpenSSL_add_all_algorithms();
+    */
 }
 
 void PollServer::DestroySSL()
 {
+    /*
     ERR_free_strings();
     EVP_cleanup();
+    */
 }
 
 void PollServer::create_context()
 {
+    /*
     const SSL_METHOD *method;
 
     method = TLSv1_2_server_method();
@@ -46,13 +51,15 @@ void PollServer::create_context()
     perror("Unable to create SSL context");
     exit(EXIT_FAILURE);
     }
+    */
 }
 
 void PollServer::configure_context()
 {
+    /*
     SSL_CTX_set_ecdh_auto(sslctx_, 1);
 
-    /* Set the key and cert */
+    // Set the key and cert
     if (SSL_CTX_use_certificate_file(sslctx_, "../certificate.pem", SSL_FILETYPE_PEM) <= 0) {
         exit(EXIT_FAILURE);
     }
@@ -60,6 +67,7 @@ void PollServer::configure_context()
     if (SSL_CTX_use_PrivateKey_file(sslctx_, "../key.pem", SSL_FILETYPE_PEM) <= 0 ) {
         exit(EXIT_FAILURE);
     }
+    */
 }
 
 void PollServer::displayLastError(std::string description){
@@ -368,8 +376,8 @@ void PollServer::start(int server_port, protocol ip_protocol)
           if (!use_ssl_){
             rc = recv(fds[i].fd, recv_buffer.data(), recv_buffer.size(), 0);
           } else {
-             SSL_set_fd(sslmap_.at(fds[i].fd), fds[i].fd);
-             rc = SSL_read(sslmap_.at(fds[i].fd), recv_buffer.data(), recv_buffer.size());
+             //SSL_set_fd(sslmap_.at(fds[i].fd), fds[i].fd);
+             //rc = SSL_read(sslmap_.at(fds[i].fd), recv_buffer.data(), recv_buffer.size());
           }
 
           if (rc < 0)

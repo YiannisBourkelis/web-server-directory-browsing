@@ -3,6 +3,7 @@
 
 #include "message_composer.h"
 #include "html_messageprocessor.h"
+#include <memory>
 
 
 class HTML_MessageComposer : public MessageComposer
