@@ -5,6 +5,7 @@
 #include "clientsession.h"
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 
 class HTML_MessageProcessor
 {
