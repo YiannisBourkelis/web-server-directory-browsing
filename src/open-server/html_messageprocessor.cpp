@@ -98,10 +98,10 @@ void HTML_MessageProcessor::processMessageQueue()
             }//while send loop
 
             {
-                if (!keep_alive){
+                //if (!keep_alive){
                     //std::unique_lock<std::mutex> qlk(HTML_MessageProcessor::qclients_close_mutex);
                     //HTML_MessageProcessor::qclients_close.push_back(std::move(client_session));
-                }
+                //}
             }
 
             //shutdown(client_session.socket, SHUT_RDWR);
