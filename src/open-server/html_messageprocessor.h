@@ -28,7 +28,7 @@ private:
 
     std::mutex qclients_mutex_;
     std::condition_variable cv_;
-    std::queue<ClientSession> csess_;
+    std::queue<ClientSession> pending_client_sessions_req_resp_;
 
 };
 

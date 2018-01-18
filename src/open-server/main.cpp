@@ -5,18 +5,17 @@
 #include <QCoreApplication>
 #include "poll_server.h"
 #include "html_messagecomposer.h"
-#include <csignal>
 
-void signal_handler(int signal)
-{
-  std::cout << signal;
-}
 
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-    std::signal(SIGINT, signal_handler);
+    #ifndef WIN32
+    //gia na mi prokaleitai crash otan paw na grapsw se socket pou exei kleisei
+    //http://stackoverflow.com/questions/108183/how-to-prevent-sigpipes-or-handle-them-properly
+    signal(SIGPIPE, SIG_IGN);
+    #endif
 
     PollServer pollserver;
 

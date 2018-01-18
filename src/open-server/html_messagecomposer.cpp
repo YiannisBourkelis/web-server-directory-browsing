@@ -29,7 +29,7 @@ void HTML_MessageComposer::onClientDataArrived(const int socket, int fds_index, 
         tmpcsession.socket = socket;
         tmpcsession.fds_index = fds_index;
         std::move(data.begin(), data.begin() + data_size, std::back_inserter(tmpcsession.recv_message));
-        messages_[socket] = tmpcsession;
+        messages_[socket] = std::move(tmpcsession);
         //elegxo ean to mynima exe symplirwthei
         verifyMessageComplete(messages_.find(socket));
     } else {

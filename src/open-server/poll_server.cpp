@@ -21,6 +21,8 @@
 #include "helper_functions.h"
 #include "html_messageprocessor.h"
 
+#include "qglobal.h" //for Q_UNUSED
+
 int PollServer::s_listen_sd;
 
 PollServer::PollServer()
@@ -76,6 +78,7 @@ void PollServer::configure_context()
 }
 
 void PollServer::displayLastError(std::string description){
+    Q_UNUSED(description);
 #ifdef MY_DEBUG
 #ifdef WIN32
         std::cout <<  description << " - Last error number: " << WSAGetLastError() << std::endl;
@@ -136,15 +139,16 @@ void PollServer::setSocketNonBlocking(int socket){
 void PollServer::checkClosedSessions()
 {
     {
-        std::unique_lock<std::mutex> qlk(HTML_MessageProcessor::qclients_close_mutex);
+        std::lock_guard<std::mutex> qlk(HTML_MessageProcessor::qclients_close_mutex);
 
         if (HTML_MessageProcessor::qclients_close.size() > 0){
             for (auto& c:HTML_MessageProcessor::qclients_close){
                 if (fds[c.fds_index].fd == c.socket) {
+                    qwe("will close socket: ", c.socket);
                     close(c.socket);
                     fds[c.fds_index].fd = -1;
-                    //fds[c.fds_index].revents = 0;
-                    //fds[c.fds_index].events = 0;
+                    fds[c.fds_index].revents = 0;
+                    fds[c.fds_index].events = 0;
                 }
             }//for
             HTML_MessageProcessor::qclients_close.clear();
@@ -154,12 +158,13 @@ void PollServer::checkClosedSessions()
 
 void PollServer::start(int server_port, protocol ip_protocol)
 {
+  Q_UNUSED(ip_protocol);
   int    len, rc, on = 1;
   int    listen_sd = -1, new_sd = -1;
   bool   end_server = false, compress_array = false;
   int    close_conn;
   //char   buffer[80];
-  std::vector<char> recv_buffer(8096);
+  std::vector<char> recv_buffer(16192);
   struct sockaddr_in   addr;
   int    nfds = 1, current_size = 0, i, j;
 
@@ -237,22 +242,23 @@ void PollServer::start(int server_port, protocol ip_protocol)
   /* Set up the initial listening socket                        */
   /*************************************************************/
   fds[0].fd = listen_sd;
-  fds[0].events = POLLIN;
+  fds[0].events = POLLIN | POLLOUT | POLLERR | POLLHUP | POLLNVAL;
 
 
   /*************************************************************/
   /* Loop waiting for incoming connects or for incoming data   */
   /* on any of the connected sockets.                          */
   /*************************************************************/
+  qwe("Entering poll() loop...", "");
   do
   {
-    checkClosedSessions();
-
     /***********************************************************/
     /* Call poll() and wait 3 minutes for it to complete.      */
     /***********************************************************/
-    printf("Waiting on poll()...\n");
+    qwe("Waiting on poll()...", "");
     rc = poll(fds, nfds, -1);
+
+    checkClosedSessions();
 
     /***********************************************************/
     /* Check to see if the poll call failed.                   */
@@ -260,7 +266,12 @@ void PollServer::start(int server_port, protocol ip_protocol)
     if (rc < 0)
     {
       perror("  poll() failed");
-      continue;
+      qwe("error no: ", errno);
+
+      if (errno == EINVAL){
+          compress_array = true;
+      }
+      //continue;
     }
 
     /***********************************************************/
@@ -293,11 +304,14 @@ void PollServer::start(int server_port, protocol ip_protocol)
       /* If revents is not POLLIN, it's an unexpected result,  */
       /* log and end the server.                               */
       /*********************************************************/
-      if(fds[i].revents != POLLIN)
+      if(!(fds[i].revents & POLLIN))
       {
-        printf("  Error! revents = %d\n", fds[i].revents);
-        close(fds[i].fd);
-        fds[i].fd = -1;
+        qwe("Error! revents = ", fds[i].revents);
+        qwe("will close socket: ", fds[i].fd);
+        if (fds[i].fd > 0){
+            close(fds[i].fd);
+            fds[i].fd = -1;
+        }
         compress_array = true;
         fds[i].revents = 0;
         continue;
@@ -305,12 +319,13 @@ void PollServer::start(int server_port, protocol ip_protocol)
         //break;
 
       }
+
       if (fds[i].fd == listen_sd)
       {
         /*******************************************************/
         /* Listening descriptor is readable.                   */
         /*******************************************************/
-        printf("  Listening socket is readable\n");
+        qwe("Listening socket is readable\n", "");
 
         /*******************************************************/
         /* Accept all incoming connections that are            */
@@ -337,6 +352,12 @@ void PollServer::start(int server_port, protocol ip_protocol)
             break;
           }
 
+          if (new_sd == 0){
+              //simvainei kai afto den kserw giati
+              qwe ("new socket = 0 !!!", "");
+              break;
+          }
+
           disableNagleAlgorithm(new_sd);
           setSocketNonBlocking(new_sd);
 
@@ -344,7 +365,7 @@ void PollServer::start(int server_port, protocol ip_protocol)
           /* Add the new incoming connection to the            */
           /* pollfd structure                                  */
           /*****************************************************/
-          printf("  New incoming connection - %d\n", new_sd);
+          qwe("New incoming connection: ", new_sd);
           fds[nfds].fd = new_sd;
           fds[nfds].events = POLLIN;
           nfds++;
@@ -365,7 +386,7 @@ void PollServer::start(int server_port, protocol ip_protocol)
       /*********************************************************/
       else
       {
-        printf("  Descriptor %d is readable\n", fds[i].fd);
+        qwe("Descriptor is readable: ", fds[i].fd);
         close_conn = false;
         /*******************************************************/
         /* Receive all incoming data on this socket            */
@@ -403,7 +424,7 @@ void PollServer::start(int server_port, protocol ip_protocol)
           /*****************************************************/
           if (rc == 0)
           {
-            printf("  Connection closed\n");
+            qwe("Connection closed", "");
             close_conn = true;
             break;
           }
@@ -412,7 +433,7 @@ void PollServer::start(int server_port, protocol ip_protocol)
           /* Data was received                                 */
           /*****************************************************/
           len = rc;
-          printf("  %d bytes received\n", len);
+          qwe("`Bytes received: ", len);
 
           msgComposer->onClientDataArrived(fds[i].fd, i, recv_buffer, rc);
 
@@ -426,7 +447,10 @@ void PollServer::start(int server_port, protocol ip_protocol)
         /*******************************************************/
         if (close_conn)
         {
-          close(fds[i].fd);
+          qwe("will close socket: ", fds[i].fd);
+          if (fds[i].fd > 0) {
+            close(fds[i].fd);
+          }
           fds[i].fd = -1;
           compress_array = true;
         }
@@ -452,6 +476,8 @@ void PollServer::start(int server_port, protocol ip_protocol)
           for(j = i; j < nfds; j++)
           {
             fds[j].fd = fds[j+1].fd;
+            fds[j].events = fds[j+1].events;
+            fds[j].revents = fds[j+1].revents;
           }
           nfds--;
         }

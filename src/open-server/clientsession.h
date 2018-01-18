@@ -11,6 +11,7 @@ public:
     int socket;
     int fds_index;
     bool keep_alive = true;
+    bool ewouldblock_flag = true;
     std::vector<char> recv_message;
     std::vector<char> send_message;
 

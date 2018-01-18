@@ -53,17 +53,28 @@ void HTML_MessageProcessor::processMessageQueue()
         // Wait until main() sends data
         {
             std::unique_lock<std::mutex> lk(qclients_mutex_);
-            cv_.wait(lk);
+            if(qclients_.size() > 0 || pending_client_sessions_req_resp_.size() > 0){
+                qwe("xmmm","");
+            }else {
+                cv_.wait(lk);
+            }
+
             while (!qclients_.empty()){
-                csess_.push(std::move(qclients_.front()));
+                pending_client_sessions_req_resp_.push(std::move(qclients_.front()));
                 qclients_.pop();
+            }
+
+            if(pending_client_sessions_req_resp_.front().ewouldblock_flag){
+                pending_client_sessions_req_resp_.front().ewouldblock_flag = false;
+                pending_client_sessions_req_resp_.push(std::move(pending_client_sessions_req_resp_.front()));
+                pending_client_sessions_req_resp_.pop();
             }
         }
 
         qwe("qclients_ size: ", qclients_.size());
 
         //ClientSession client_session;
-        while (!csess_.empty()){
+        //while (!pending_client_sessions_req_resp_.empty()){
             //client_session = std::move(csess_.front());
             //csess_.pop();
 
@@ -73,13 +84,16 @@ void HTML_MessageProcessor::processMessageQueue()
                                "\r\n\r\n"
                                "<html><head><title>Hello World</title></head><h1>Hello World</h1></html>");
                                */
-            onClientRequest(csess_.front());
+            onClientRequest(pending_client_sessions_req_resp_.front());
 
+            bool EWOULDBLOCK_ = false;
             int snd;
             size_t total_bytes = 0;
-            size_t bytesleft = csess_.front().send_message.size();
-            while (total_bytes < csess_.front().send_message.size()){
-                snd = send(csess_.front().socket, csess_.front().send_message.data()+total_bytes, bytesleft, 0);
+            size_t bytesleft = pending_client_sessions_req_resp_.front().send_message.size();
+            while (total_bytes < pending_client_sessions_req_resp_.front().send_message.size()){
+                snd = send(pending_client_sessions_req_resp_.front().socket,
+                           pending_client_sessions_req_resp_.front().send_message.data() + total_bytes,
+                           bytesleft, 0);
 
                 if (snd == -1){
                     if (errno == EWOULDBLOCK || errno == EAGAIN){
@@ -87,16 +101,17 @@ void HTML_MessageProcessor::processMessageQueue()
                         //diagrafo ta bytes pou exoun stalei mexrei stigmis
                         //client_session.recv_message.erase(client_session.recv_message.begin() + total_bytes);
                         //csess_.push(std::move(client_session));
+                        pending_client_sessions_req_resp_.front().ewouldblock_flag = true;
                         break;
                     }
                     //allo sfalma opote teleiwnw tin epeksergasia
-                    csess_.front().send_message.clear();
+                    pending_client_sessions_req_resp_.front().send_message.clear();
                     break;
                 }
 
                 if (snd == 0){
                     //remote peer closed the connection
-                    csess_.front().send_message.clear();
+                    pending_client_sessions_req_resp_.front().send_message.clear();
                     break;
                 }
 
@@ -104,25 +119,28 @@ void HTML_MessageProcessor::processMessageQueue()
                 bytesleft -= snd;
             }//while send loop
 
-            csess_.front().send_message.erase(csess_.front().send_message.begin(),
-                                              csess_.front().send_message.begin() + total_bytes);
+            pending_client_sessions_req_resp_.front().send_message.erase(
+                                                pending_client_sessions_req_resp_.front().send_message.begin(),
+                                                pending_client_sessions_req_resp_.front().send_message.begin() + total_bytes);
 
-            if (csess_.front().send_message.size() == 0){
-                if (!csess_.front().keep_alive){
-                    std::unique_lock<std::mutex> qlk(HTML_MessageProcessor::qclients_close_mutex);
-                    HTML_MessageProcessor::qclients_close.push_back(std::move(csess_.front()));
-                    QTcpSocket s;
+            if (pending_client_sessions_req_resp_.front().send_message.size() == 0){
+                if (!pending_client_sessions_req_resp_.front().keep_alive){
+                    //close(pending_client_sessions_req_resp_.front().socket);
+                    std::lock_guard<std::mutex> qlk(HTML_MessageProcessor::qclients_close_mutex);
+                    HTML_MessageProcessor::qclients_close.push_back(std::move(pending_client_sessions_req_resp_.front()));
+
+                    //QTcpSocket s;
                     //s.connectToHost("127.0.0.1", 12349);
                     //s.waitForConnected(5000);
                     //s.close();
                 }
-                csess_.pop();
+                pending_client_sessions_req_resp_.pop();
             }
 
             //shutdown(client_session.socket, SHUT_RDWR);
             //close(client_session.socket);
-        } //while
-    }
+        } //
+    //}//
 }
 
 void HTML_MessageProcessor::onClientRequest(ClientSession &client_session){
@@ -142,12 +160,6 @@ void HTML_MessageProcessor::onClientRequest(ClientSession &client_session){
 
     std::ostringstream os;
     QDir directory;
-    if (url != "/"){
-        bool chdir = directory.setCurrent(QString::fromStdString(url));
-        if(!chdir){
-           qwe("could not change directory","");
-        }
-    }
 
     QFileInfoList list;
     std::string response_body;
@@ -170,6 +182,12 @@ void HTML_MessageProcessor::onClientRequest(ClientSession &client_session){
         QByteArray bytes = file_io.readAll();
         response_body_vect.insert(response_body_vect.end(), bytes.begin(), bytes.end());
     }else{
+        if (url != "/"){
+            bool chdir = directory.setCurrent(QString::fromStdString(url));
+            if(!chdir){
+               qwe("could not change directory","");
+            }
+        }
         //directory
         list = directory.entryInfoList();
         for (auto file:list){
@@ -185,7 +203,9 @@ void HTML_MessageProcessor::onClientRequest(ClientSession &client_session){
           }
         }
 
-        response_body = "<html><head><title>Hello World!!!!!</title></head><body><h1>Hello World 1</h1>" +
+        response_body = "<html><head><title>Open Web Server</title></head><body><h1>" +
+                directory.currentPath().toStdString() +
+                "</h1>" +
                                        os.str() +
                                        "</body></html>";
         mime_str = "text/html";
