@@ -28,6 +28,7 @@
 
 #include "helper_functions.h"
 #include <QDir>
+#include <QUrl>
 #include <string>
 #include <sstream>
 #include <iostream>
@@ -158,6 +159,8 @@ void HTML_MessageProcessor::onClientRequest(ClientSession &client_session){
     std::string get_line(request.begin() + 4, request.begin() + rv - 1);
     int last_space = get_line.find_last_of(" ", get_line.size());
     std::string url(get_line.begin(), get_line.begin() + last_space);
+    //url = "" + url + "";
+    QString url_decoded = QString::fromStdString(url).replace("%20", " ");
 
     std::ostringstream os;
     QDir directory;
@@ -174,7 +177,7 @@ void HTML_MessageProcessor::onClientRequest(ClientSession &client_session){
     std::string mime_str;
     //ean to url einai arxeio epistrefw arxeio, alliws lista me
     //ta directory kai ta arxeia ws html
-    QFileInfo check_file(QString::fromStdString(url));
+    QFileInfo check_file(url_decoded);
     // check if file exists and if yes: Is it really a file and no directory?
     if (check_file.exists() && check_file.isFile()){
         //einai arxeio
@@ -204,23 +207,33 @@ void HTML_MessageProcessor::onClientRequest(ClientSession &client_session){
 
         response_body_vect.insert(response_body_vect.end(), bytes.begin(), bytes.end());
     }else{
+
+        QString current_dir = QDir::fromNativeSeparators(url_decoded);
         if (url != "/"){
-            bool chdir = directory.setCurrent(QString::fromStdString(url));
+            bool chdir = directory.setCurrent(current_dir);
             if(!chdir){
                qwe("could not change directory","");
             }
+        } else {
+            bool chdir = directory.setCurrent("/");
+            if(!chdir){
+                qwe("could not change directory","");
+            }
         }
+
         //directory
         list = directory.entryInfoList();
+        std::string url_encoded;
         for (auto file:list){
-          if(file.isDir()){
+            url_encoded = file.absoluteFilePath().replace(" ", "%20").toStdString();
+          if(file.isDir()){;
               //einai directory
-        os << "<br /><a href=""" << file.absoluteFilePath().toHtmlEscaped().toStdString()  << """>"
+        os << "<br /><a href=""" << url_encoded << """>"
            << QString("<DIR> ").toHtmlEscaped().toStdString()
            << file.fileName().toHtmlEscaped().toStdString() << "</a>";
           }else {
               //einai arxeio
-        os << "<br /><a href=""" << file.absoluteFilePath().toHtmlEscaped().toStdString()  << """>"
+        os << "<br /><a href=""" << url_encoded << """>"
          << file.fileName().toHtmlEscaped().toStdString() << "</a>";
           }
         }
