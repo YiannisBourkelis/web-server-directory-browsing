@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 #include "poll_server.h"
 #include "html_messagecomposer.h"
+#include "signal.h"
 
 
 int main(int argc, char *argv[])
