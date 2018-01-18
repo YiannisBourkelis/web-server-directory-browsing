@@ -83,6 +83,15 @@ void HTML_MessageProcessor::processMessageQueue()
             //epeksergasia tou request kai lipsi tou minimatos pros apostoli
             onClientRequest(pending_client_sessions_req_resp_.front());
 
+            //ean i proigoumeni apostoli teleiwse me EWOULDBLOCK
+            //kanw poll sto socket wste na min katanalwnontai cpu cycles
+            if (pending_client_sessions_req_resp_.front().ewouldblock_flag){
+                struct pollfd wait_fd[1];
+                wait_fd[0].events = POLLIN;
+                wait_fd[0].fd = pending_client_sessions_req_resp_.front().socket;
+                poll(wait_fd, 1, 5000);
+            }
+
             int snd;
             size_t total_bytes = 0;
             size_t bytesleft = pending_client_sessions_req_resp_.front().send_message.size();
