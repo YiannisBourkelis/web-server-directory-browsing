@@ -17,6 +17,13 @@
 // Thread Pools in NGINX Boost Performance 9x!
 // https://www.nginx.com/blog/thread-pools-boost-performance-9x/
 
+// epoll example
+// https://banu.com/blog/2/how-to-use-epoll-a-complete-example-in-c/
+
+// scalable network io in linux
+// http://www.citi.umich.edu/techreports/reports/citi-tr-00-4.pdf
+
+
 #include "poll_server.h"
 #include "helper_functions.h"
 #include "html_messageprocessor.h"

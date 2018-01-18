@@ -65,7 +65,6 @@ void HTML_MessageProcessor::processMessageQueue()
             }
 
             if(pending_client_sessions_req_resp_.front().ewouldblock_flag){
-                pending_client_sessions_req_resp_.front().ewouldblock_flag = false;
                 pending_client_sessions_req_resp_.push(std::move(pending_client_sessions_req_resp_.front()));
                 pending_client_sessions_req_resp_.pop();
             }
@@ -73,20 +72,16 @@ void HTML_MessageProcessor::processMessageQueue()
 
         qwe("qclients_ size: ", qclients_.size());
 
-        //ClientSession client_session;
-        //while (!pending_client_sessions_req_resp_.empty()){
-            //client_session = std::move(csess_.front());
-            //csess_.pop();
-
             /*
             std::string resp ("HTTP/1.1 200 OK\n"
                                "Content-Type: text/html\n"
                                "\r\n\r\n"
                                "<html><head><title>Hello World</title></head><h1>Hello World</h1></html>");
                                */
+
+            //epeksergasia tou request kai lipsi tou minimatos pros apostoli
             onClientRequest(pending_client_sessions_req_resp_.front());
 
-            bool EWOULDBLOCK_ = false;
             int snd;
             size_t total_bytes = 0;
             size_t bytesleft = pending_client_sessions_req_resp_.front().send_message.size();
@@ -97,33 +92,36 @@ void HTML_MessageProcessor::processMessageQueue()
 
                 if (snd == -1){
                     if (errno == EWOULDBLOCK || errno == EAGAIN){
-                        //qwe("send loop ewouldblock","");
-                        //diagrafo ta bytes pou exoun stalei mexrei stigmis
-                        //client_session.recv_message.erase(client_session.recv_message.begin() + total_bytes);
-                        //csess_.push(std::move(client_session));
+                        //thetw to flag se true, wste sto epono loop na to vgalei apo tin
+                        //prwti thesi tou queue kai na to valei stin teleftaia, wste na epeksergastoun
+                        //alla sockets an yparxoun.
                         pending_client_sessions_req_resp_.front().ewouldblock_flag = true;
                         break;
                     }
                     //allo sfalma opote teleiwnw tin epeksergasia
                     pending_client_sessions_req_resp_.front().send_message.clear();
+                    pending_client_sessions_req_resp_.front().send_message_has_more_bytes = false;
                     break;
                 }
 
                 if (snd == 0){
                     //remote peer closed the connection
                     pending_client_sessions_req_resp_.front().send_message.clear();
+                    pending_client_sessions_req_resp_.front().send_message_has_more_bytes = false;
                     break;
                 }
 
                 total_bytes += snd;
                 bytesleft -= snd;
             }//while send loop
+            pending_client_sessions_req_resp_.front().send_message_index += total_bytes;
 
             pending_client_sessions_req_resp_.front().send_message.erase(
                                                 pending_client_sessions_req_resp_.front().send_message.begin(),
                                                 pending_client_sessions_req_resp_.front().send_message.begin() + total_bytes);
 
-            if (pending_client_sessions_req_resp_.front().send_message.size() == 0){
+            if (pending_client_sessions_req_resp_.front().send_message.size() == 0 &&
+                    pending_client_sessions_req_resp_.front().send_message_has_more_bytes == false){
                 if (!pending_client_sessions_req_resp_.front().keep_alive){
                     //close(pending_client_sessions_req_resp_.front().socket);
                     std::lock_guard<std::mutex> qlk(HTML_MessageProcessor::qclients_close_mutex);
@@ -146,7 +144,10 @@ void HTML_MessageProcessor::processMessageQueue()
 void HTML_MessageProcessor::onClientRequest(ClientSession &client_session){
     //ean yparxei minima pros apostoli se ekremotita
     //den kanw tipota
-    if(client_session.send_message.size() > 0) return;
+    if(client_session.ewouldblock_flag){
+        client_session.ewouldblock_flag = false;
+        return;
+    }
 
     //metatrepw to client request se string gia na to analysw
     std::string request(client_session.recv_message.begin(), client_session.recv_message.end());
@@ -165,6 +166,9 @@ void HTML_MessageProcessor::onClientRequest(ClientSession &client_session){
     std::string response_body;
     std::vector<char> response_body_vect;
 
+    bool include_header = true;
+    long pending_bytes = 0;
+
     QMimeDatabase db;
     QMimeType mime;
     std::string mime_str;
@@ -179,7 +183,25 @@ void HTML_MessageProcessor::onClientRequest(ClientSession &client_session){
 
         QFile file_io(check_file.absoluteFilePath());
         file_io.open(QIODevice::ReadOnly);
-        QByteArray bytes = file_io.readAll();
+        QByteArray bytes;
+
+
+        //ypologismos bytes pros apostoli.
+        int FILE_CHUNK = 8192; //8192=8.1mb/s, 16384/32768=8.5mb/s
+        include_header = !client_session.send_message_has_more_bytes;
+        file_io.seek(client_session.send_message_index - client_session.send_message_header_size);
+        if (file_io.size() - client_session.send_message_index + client_session.send_message_header_size > FILE_CHUNK){
+            bytes.resize(FILE_CHUNK);
+            file_io.read(bytes.data(), FILE_CHUNK);
+            pending_bytes = file_io.size() - FILE_CHUNK;
+            client_session.send_message_has_more_bytes = true;
+
+        } else if (file_io.size() - client_session.send_message_index + client_session.send_message_header_size <= FILE_CHUNK) {
+            bytes.resize(file_io.size() - client_session.send_message_index + client_session.send_message_header_size);
+            file_io.read(bytes.data(), file_io.size() - client_session.send_message_index + client_session.send_message_header_size);
+            client_session.send_message_has_more_bytes = false;
+        }
+
         response_body_vect.insert(response_body_vect.end(), bytes.begin(), bytes.end());
     }else{
         if (url != "/"){
@@ -216,12 +238,16 @@ void HTML_MessageProcessor::onClientRequest(ClientSession &client_session){
     std::string response_header ("HTTP/1.1 200 OK\r\n"
               "Content-Type: " + mime_str + "\r\n" +
               "Connection: close\r\n" +
-              "Content-Length: " + std::to_string(response_body_vect.size()) + "\r\n"
+              "Content-Length: " + std::to_string(response_body_vect.size() + pending_bytes) + "\r\n"
               "\r\n");
 
     //dimiourgw to minuma pros apostoli
-    std::vector<char> response_header_vect(response_header.begin(), response_header.end());
-    client_session.send_message.insert(client_session.send_message.end(), response_header_vect.begin(), response_header_vect.end());
+    client_session.send_message.clear();
+    if (include_header){
+        std::vector<char> response_header_vect(response_header.begin(), response_header.end());
+        client_session.send_message.insert(client_session.send_message.end(), response_header_vect.begin(), response_header_vect.end());
+        client_session.send_message_header_size = response_header_vect.size();
+    }
     client_session.send_message.insert(client_session.send_message.end(), response_body_vect.begin(), response_body_vect.end());
 
     //ypologizw keep-alive
