@@ -34,6 +34,7 @@ void HTML_MessageComposer::onClientDataArrived(const int socket, int fds_index, 
         verifyMessageComplete(messages_.find(socket));
     } else {
         //proyparxoun dedomena, opote ta kanw merge
+        //TODO: na to kanw me std::move
         stored_client->second.recv_message.insert(stored_client->second.recv_message.end(), data.begin(), data.end());
         //elegxo ean to mynima exe symplirwthei
         verifyMessageComplete(stored_client);
@@ -42,16 +43,18 @@ void HTML_MessageComposer::onClientDataArrived(const int socket, int fds_index, 
 
 bool HTML_MessageComposer::verifyMessageComplete(const std::map<int, ClientSession>::iterator msg_it)
 {
+    //ean exei lifthei olokliro to request, pou simainei oti teleiwnei me \r\n\r\n
+    //epistrefw true, alliws epistrefw false kai perimeno to epomeno minima gia na to enosw.
     if (msg_it->second.recv_message.size() > 3){
-        if ( (msg_it->second.recv_message.at(msg_it->second.recv_message.size() - 4) == 13) && // \r
-             (msg_it->second.recv_message.at(msg_it->second.recv_message.size() - 3) == 10) && // \n
-             (msg_it->second.recv_message.at(msg_it->second.recv_message.size() - 2) == 13) && // \r
-             (msg_it->second.recv_message.at(msg_it->second.recv_message.size() - 1) == 10) ){ // \n
-
+            std::vector<char>::iterator tmp = msg_it->second.recv_message.end();
+            if ( (*(--tmp) == 10) && // \n
+                 (*(--tmp) == 13) && // \r
+                 (*(--tmp) == 10) && // \n
+                 (*(--tmp) == 13) ){ // \r
             msg_processor_->onNewClientMessage(std::move(msg_it->second));
             messages_.erase(msg_it);           
             return true;
-        }
+        }//if
     }
     return false;
 }

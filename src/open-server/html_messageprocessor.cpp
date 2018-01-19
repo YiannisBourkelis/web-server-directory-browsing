@@ -128,10 +128,13 @@ void HTML_MessageProcessor::processMessageQueue()
             }//while send loop
             pending_client_sessions_req_resp_.front().send_message_index += total_bytes;
 
+            //diagrafw oso apo to minima mporese na stalthei
             pending_client_sessions_req_resp_.front().send_message.erase(
                                                 pending_client_sessions_req_resp_.front().send_message.begin(),
                                                 pending_client_sessions_req_resp_.front().send_message.begin() + total_bytes);
 
+            //ean exei stalei olo to minima kai den xreiazetai synexeia
+            //tote diagrafw to session apo to queue
             if (pending_client_sessions_req_resp_.front().send_message.size() == 0 &&
                     pending_client_sessions_req_resp_.front().send_message_has_more_bytes == false){
                 if (!pending_client_sessions_req_resp_.front().keep_alive){
@@ -196,27 +199,65 @@ void HTML_MessageProcessor::onClientRequest(ClientSession &client_session){
         mime_str = mime.name().toStdString();
 
         QFile file_io(check_file.absoluteFilePath());
-        file_io.open(QIODevice::ReadOnly);
-        QByteArray bytes;
+
+        auto cache_it = cache_.find(url);
+        bool cached = (cache_it != cache_.end());
+
+        if(!cached){
+            file_io.open(QIODevice::ReadOnly);
+            std::vector<char> tmp(file_io.size());
+            file_io.read(tmp.data(), file_io.size());
+            cache_[url] = std::move(tmp);
+            cache_it = cache_.find(url);
+            int a = cache_it->second.size();
+            //file_io.seek(0);
+        }
 
 
         //ypologismos bytes pros apostoli.
-        int FILE_CHUNK = 8192; //8192=8.1mb/s, 16384/32768=8.5mb/s
+        int FILE_CHUNK = 1048576; //8192=8.1mb/s, 16384/32768=8.5mb/s 65536 262144 524288
         include_header = !client_session.send_message_has_more_bytes;
-        file_io.seek(client_session.send_message_index - client_session.send_message_header_size);
+        //metaferomai stin thesi apo opou tha arxisw na diavazw to arxeio.
+        //if(!cached){
+        //    file_io.seek(client_session.send_message_index - client_session.send_message_header_size);
+        //}
         if (file_io.size() - client_session.send_message_index + client_session.send_message_header_size > FILE_CHUNK){
-            bytes.resize(FILE_CHUNK);
-            file_io.read(bytes.data(), FILE_CHUNK);
+            //to arxeio den xoraei olokliro sto send_message buffer opote diavazw mono ena tmima tou
+            //me megethos oso oristike apo to FILE_CHUNK
+            //bytes.resize(FILE_CHUNK);
+            //file_io.read(bytes.data(), FILE_CHUNK);
+
+            //response_body_vect.resize(FILE_CHUNK);
+
+            //file_io.read(response_body_vect.data(), FILE_CHUNK);
+            response_body_vect.insert(response_body_vect.end(),
+                                      cache_it->second.begin() + (client_session.send_message_index - client_session.send_message_header_size),
+                                      cache_it->second.begin() + FILE_CHUNK + (client_session.send_message_index - client_session.send_message_header_size));
+
+
             pending_bytes = file_io.size() - FILE_CHUNK;
             client_session.send_message_has_more_bytes = true;
 
         } else if (file_io.size() - client_session.send_message_index + client_session.send_message_header_size <= FILE_CHUNK) {
-            bytes.resize(file_io.size() - client_session.send_message_index + client_session.send_message_header_size);
-            file_io.read(bytes.data(), file_io.size() - client_session.send_message_index + client_session.send_message_header_size);
+            //edw erxetai ean to arxeio xwraei sto send_message buffer, i ean einai to teleftaio tmima tou arxeiou
+            //bytes.resize(file_io.size() - client_session.send_message_index + client_session.send_message_header_size);
+            //file_io.read(bytes.data(), file_io.size() - client_session.send_message_index + client_session.send_message_header_size);
+            long vres = file_io.size() - client_session.send_message_index + client_session.send_message_header_size;
+            //response_body_vect.resize(vres);
+            //if(!cached){
+            //    file_io.read(response_body_vect.data(), file_io.size() - client_session.send_message_index + client_session.send_message_header_size);
+            //} else {
+
+            //std::vector<char> tt2 = cache_it->second;
+            //std::vector<char> tt = cache_.find(url)->second;
+                response_body_vect.insert(response_body_vect.end(),
+                                          cache_it->second.begin() + (client_session.send_message_index - client_session.send_message_header_size),
+                                          cache_it->second.end());
+            //}
             client_session.send_message_has_more_bytes = false;
         }
 
-        response_body_vect.insert(response_body_vect.end(), bytes.begin(), bytes.end());
+        //response_body_vect.insert(response_body_vect.end(), bytes.begin(), bytes.end());
     }else{
 
         QString current_dir = QDir::fromNativeSeparators(url_decoded);
@@ -256,7 +297,7 @@ void HTML_MessageProcessor::onClientRequest(ClientSession &client_session){
                                        "</body></html>";
         mime_str = "text/html";
         response_body_vect.insert(response_body_vect.begin(), response_body.begin(), response_body.end());
-    } //else
+    } //else (directory listing)
 
 
     std::string response_header ("HTTP/1.1 200 OK\r\n"
@@ -264,6 +305,8 @@ void HTML_MessageProcessor::onClientRequest(ClientSession &client_session){
               "Connection: close\r\n" +
               "Content-Length: " + std::to_string(response_body_vect.size() + pending_bytes) + "\r\n"
               "\r\n");
+
+    //              "Connection: close\r\n" +
 
     //dimiourgw to minuma pros apostoli
     client_session.send_message.clear();

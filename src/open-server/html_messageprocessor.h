@@ -6,6 +6,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <map>
 
 class HTML_MessageProcessor
 {
@@ -29,6 +30,8 @@ private:
     std::mutex qclients_mutex_;
     std::condition_variable cv_;
     std::queue<ClientSession> pending_client_sessions_req_resp_;
+
+    std::map<std::string, std::vector<char>> cache_;
 
 };
 

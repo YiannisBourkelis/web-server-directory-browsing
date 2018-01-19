@@ -211,6 +211,8 @@ void PollServer::start(int server_port, protocol ip_protocol)
     exit(-1);
   }
 
+  disableNagleAlgorithm(listen_sd);
+
   /*************************************************************/
   /* Bind the socket                                           */
   /*************************************************************/
