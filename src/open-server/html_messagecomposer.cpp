@@ -17,7 +17,7 @@ void HTML_MessageComposer::onClientDisconnect()
 
 }
 
-void HTML_MessageComposer::onClientDataArrived(const int socket, int fds_index, const std::vector<char> data, const int data_size)
+void HTML_MessageComposer::onClientDataArrived(const int socket, int fds_index, const std::vector<char> &data, const int data_size)
 {
     auto stored_client = messages_.find(socket);
 
@@ -35,7 +35,9 @@ void HTML_MessageComposer::onClientDataArrived(const int socket, int fds_index, 
     } else {
         //proyparxoun dedomena, opote ta kanw merge
         //TODO: na to kanw me std::move
-        stored_client->second.recv_message.insert(stored_client->second.recv_message.end(), data.begin(), data.end());
+        stored_client->second.recv_message.insert(stored_client->second.recv_message.end(),
+                                                  std::make_move_iterator(data.begin()),
+                                                  std::make_move_iterator(data.end()));
         //elegxo ean to mynima exe symplirwthei
         verifyMessageComplete(stored_client);
     }

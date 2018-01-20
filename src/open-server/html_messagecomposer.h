@@ -17,7 +17,7 @@ public:
     //public interface
     virtual void onNewClientConnect();
     virtual void onClientDisconnect();
-    virtual void onClientDataArrived(const int socket, int fds_index, const std::vector<char> data,const int data_size);
+    virtual void onClientDataArrived(const int socket, int fds_index, const std::vector<char> &data,const int data_size);
     virtual bool verifyMessageComplete(const std::map<int, ClientSession>::iterator msg_it);
 
 private:

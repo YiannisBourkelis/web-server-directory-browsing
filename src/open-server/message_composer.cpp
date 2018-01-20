@@ -21,7 +21,7 @@ void MessageComposer::onClientDisconnect()
 
 }
 
-void MessageComposer::onClientDataArrived(const int socket, int fds_index, const std::vector<char> data, int data_size)
+void MessageComposer::onClientDataArrived(const int socket, int fds_index, const std::vector<char> &data, int data_size)
 {
     Q_UNUSED(socket);
     Q_UNUSED(fds_index);

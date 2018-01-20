@@ -23,6 +23,9 @@
 // scalable network io in linux
 // http://www.citi.umich.edu/techreports/reports/citi-tr-00-4.pdf
 
+// Message Dispatcher
+//http://www.enterpriseintegrationpatterns.com/patterns/messaging/MessageDispatcher.html
+
 
 #include "poll_server.h"
 #include "helper_functions.h"
@@ -171,7 +174,7 @@ void PollServer::start(int server_port, protocol ip_protocol)
   bool   end_server = false, compress_array = false;
   int    close_conn;
   //char   buffer[80];
-  std::vector<char> recv_buffer(16192);
+  std::vector<char> recv_buffer(65535); //16192 65535
   struct sockaddr_in   addr;
   int    nfds = 1, current_size = 0, i, j;
 
@@ -461,6 +464,7 @@ void PollServer::start(int server_port, protocol ip_protocol)
             close(fds[i].fd);
           }
           fds[i].fd = -1;
+          fds[i].revents = 0;
           compress_array = true;
         }
 

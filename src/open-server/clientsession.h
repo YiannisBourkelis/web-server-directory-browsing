@@ -9,7 +9,7 @@ public:
     ClientSession();
 
     int socket;//to socket pou client sto opoio ginetai i apostoli dedomenwn
-    int fds_index;//i thesi pou vrisketai to socket mesa sto pollfd array, sto poll
+    int fds_index = 0;//i thesi pou vrisketai to socket mesa sto pollfd array, sto poll
     bool keep_alive = true;//ean sto HTTP request exei zitithei keep-alive
     bool ewouldblock_flag = false;//gia megala mynimata, ean den ginei apostoli me ena send, thetei afto to flag se true
     std::vector<char> recv_message;//periexei to HTTP request
