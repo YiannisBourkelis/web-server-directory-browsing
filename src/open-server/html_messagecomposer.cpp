@@ -28,14 +28,14 @@ void HTML_MessageComposer::onClientDataArrived(const int socket, int fds_index, 
         ClientSession tmpcsession;
         tmpcsession.socket = socket;
         tmpcsession.fds_index = fds_index;
-        std::move(data.begin(), data.begin() + data_size, std::back_inserter(tmpcsession.recv_message));
+        std::move(data.begin(), data.begin() + data_size, std::back_inserter(tmpcsession.request.request_header));
         messages_[socket] = std::move(tmpcsession);
         //elegxo ean to mynima exe symplirwthei
         verifyMessageComplete(messages_.find(socket));
     } else {
         //proyparxoun dedomena, opote ta kanw merge
         //TODO: na to kanw me std::move
-        stored_client->second.recv_message.insert(stored_client->second.recv_message.end(),
+        stored_client->second.request.request_header.insert(stored_client->second.request.request_header.end(),
                                                   std::make_move_iterator(data.begin()),
                                                   std::make_move_iterator(data.end()));
         //elegxo ean to mynima exe symplirwthei
@@ -47,8 +47,8 @@ bool HTML_MessageComposer::verifyMessageComplete(const std::map<int, ClientSessi
 {
     //ean exei lifthei olokliro to request, pou simainei oti teleiwnei me \r\n\r\n
     //epistrefw true, alliws epistrefw false kai perimeno to epomeno minima gia na to enosw.
-    if (msg_it->second.recv_message.size() > 3){
-            std::vector<char>::iterator tmp = msg_it->second.recv_message.end();
+    if (msg_it->second.request.request_header.size() > 3){
+            std::vector<char>::iterator tmp = msg_it->second.request.request_header.end();
             if ( (*(--tmp) == 10) && // \n
                  (*(--tmp) == 13) && // \r
                  (*(--tmp) == 10) && // \n

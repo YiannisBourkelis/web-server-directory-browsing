@@ -160,7 +160,7 @@ void HTML_MessageProcessor::processMessageQueue()
 
 void HTML_MessageProcessor::onNewClientMessage(const ClientSession &client_session)
 {
-    std::string get_request (client_session.recv_message.begin(), client_session.recv_message.end());
+    std::string get_request (client_session.request.request_header.begin(), client_session.request.request_header.end());
     qwe(get_request,"");
 
     {

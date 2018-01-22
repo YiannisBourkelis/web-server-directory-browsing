@@ -9,6 +9,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <map>
+#include <QString>
 
 class HTTP_Message_Dispatcher
 {
@@ -16,7 +17,7 @@ public:
     HTTP_Message_Dispatcher();
 
     static std::mutex cache_mutex;
-    static std::map<std::string, std::vector<char>> cache_;
+    static std::map<QString, std::vector<char>> cache_;
 
     void dispatchMessageQueue();
     void onNewMessageArrived(const ClientSession &client_session);

@@ -23,7 +23,8 @@ SOURCES += main.cpp \
     html_messagecomposer.cpp \
     html_messageprocessor.cpp \
     clientsession.cpp \
-    http_message_dispatcher.cpp
+    http_message_dispatcher.cpp \
+    http_header_parser.cpp
 
 HEADERS += \
     poll_server.h \
@@ -32,4 +33,5 @@ HEADERS += \
     html_messageprocessor.h \
     clientsession.h \
     helper_functions.h \
-    http_message_dispatcher.h
+    http_message_dispatcher.h \
+    http_header_parser.h
