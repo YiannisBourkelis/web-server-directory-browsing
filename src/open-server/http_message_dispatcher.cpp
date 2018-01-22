@@ -103,12 +103,19 @@ void HTTP_Message_Dispatcher::dispatchMessageQueue()
             }
             */
 
+            std::vector<char> * response_data;
+            if (client_sessions_req_resp_queue_.front().is_cached){
+                response_data = &client_sessions_req_resp_queue_.front().cache_iterator->second;
+            }else {
+                response_data = &client_sessions_req_resp_queue_.front().send_message;
+            }
+
             int snd;
             size_t total_bytes = 0;
-            size_t bytesleft = client_sessions_req_resp_queue_.front().send_message.size();
-            while (total_bytes < client_sessions_req_resp_queue_.front().send_message.size()){
+            size_t bytesleft = response_data->size();
+            while (total_bytes < response_data->size()){
                 snd = send(client_sessions_req_resp_queue_.front().socket,
-                           client_sessions_req_resp_queue_.front().send_message.data() + total_bytes,
+                           response_data->data() + total_bytes,
                            bytesleft, 0);
 
                 if (snd == -1){
@@ -120,15 +127,19 @@ void HTTP_Message_Dispatcher::dispatchMessageQueue()
                         break;
                     }
                     //allo sfalma opote teleiwnw tin epeksergasia
-                    client_sessions_req_resp_queue_.front().send_message.clear();
-                    client_sessions_req_resp_queue_.front().send_message_has_more_bytes = false;
+                    if (client_sessions_req_resp_queue_.front().is_cached){
+                        client_sessions_req_resp_queue_.front().send_message.clear();
+                        client_sessions_req_resp_queue_.front().send_message_has_more_bytes = false;
+                    }
                     break;
                 }
 
                 if (snd == 0){
                     //remote peer closed the connection
-                    client_sessions_req_resp_queue_.front().send_message.clear();
-                    client_sessions_req_resp_queue_.front().send_message_has_more_bytes = false;
+                    if (client_sessions_req_resp_queue_.front().is_cached){
+                        client_sessions_req_resp_queue_.front().send_message.clear();
+                        client_sessions_req_resp_queue_.front().send_message_has_more_bytes = false;
+                    }
                     break;
                 }
 
@@ -137,15 +148,18 @@ void HTTP_Message_Dispatcher::dispatchMessageQueue()
             }//while send loop
             client_sessions_req_resp_queue_.front().send_message_index += total_bytes;
 
+            if (!client_sessions_req_resp_queue_.front().is_cached){
             //diagrafw oso apo to minima mporese na stalthei
             client_sessions_req_resp_queue_.front().send_message.erase(
                                                 client_sessions_req_resp_queue_.front().send_message.begin(),
                                                 client_sessions_req_resp_queue_.front().send_message.begin() + total_bytes);
+            }
 
             //ean exei stalei olo to minima kai den xreiazetai synexeia
             //tote diagrafw to session apo to queue
-            if (client_sessions_req_resp_queue_.front().send_message.size() == 0 &&
-                    client_sessions_req_resp_queue_.front().send_message_has_more_bytes == false){
+            if ( (client_sessions_req_resp_queue_.front().is_cached == true) ||
+                    (client_sessions_req_resp_queue_.front().send_message.size() == 0 &&
+                    client_sessions_req_resp_queue_.front().send_message_has_more_bytes == false)){
                 if (!client_sessions_req_resp_queue_.front().keep_alive){
                     //close(pending_client_sessions_req_resp_.front().socket);
                     std::lock_guard<std::mutex> qlk(HTML_MessageProcessor::qclients_close_mutex);
@@ -195,6 +209,7 @@ void HTTP_Message_Dispatcher::onClientRequest(ClientSession &client_session){
 
     bool include_header = true;
     long pending_bytes = 0;
+    bool should_cache_response;
 
     std::string mime_str;
     //ean to url einai arxeio epistrefw arxeio, alliws lista me
@@ -210,17 +225,14 @@ void HTTP_Message_Dispatcher::onClientRequest(ClientSession &client_session){
 
         QFile file_io(check_file.absoluteFilePath());
 
-        auto cache_it = HTTP_Message_Dispatcher::cache_.find(client_session.request.request_path);
-        bool cached = (cache_it != HTTP_Message_Dispatcher::cache_.end());
+        client_session.cache_iterator = HTTP_Message_Dispatcher::cache_.find(client_session.request.request_path);
+        bool cached = (client_session.cache_iterator != HTTP_Message_Dispatcher::cache_.end());
+        should_cache_response = !cached;
 
-        if(!cached){
-            file_io.open(QIODevice::ReadOnly);
-            std::vector<char> tmp(file_io.size());
-            file_io.read(tmp.data(), file_io.size());
-            HTTP_Message_Dispatcher::cache_[client_session.request.request_path] = std::move(tmp);
-            cache_it = HTTP_Message_Dispatcher::cache_.find(client_session.request.request_path);
+        if(cached){
+            client_session.is_cached = true;
+            return;
         }
-
 
         //ypologismos bytes pros apostoli.
         int FILE_CHUNK = 1048576; //8192=8.1mb/s, 16384/32768=8.5mb/s 65536 262144 524288 >1048576 2097152 4194304
@@ -229,19 +241,24 @@ void HTTP_Message_Dispatcher::onClientRequest(ClientSession &client_session){
         //if(!cached){
         //    file_io.seek(client_session.send_message_index - client_session.send_message_header_size);
         //}
+
+        file_io.open(QFileDevice::ReadOnly);
+        file_io.seek(client_session.send_message_index - client_session.send_message_header_size);
+
         if (file_io.size() - client_session.send_message_index + client_session.send_message_header_size > FILE_CHUNK){
             //to arxeio den xoraei olokliro sto send_message buffer opote diavazw mono ena tmima tou
             //me megethos oso oristike apo to FILE_CHUNK
             //bytes.resize(FILE_CHUNK);
             //file_io.read(bytes.data(), FILE_CHUNK);
 
-            //response_body_vect.resize(FILE_CHUNK);
+            response_body_vect.resize(FILE_CHUNK);
+            file_io.read(response_body_vect.data(), FILE_CHUNK);
 
-            //file_io.read(response_body_vect.data(), FILE_CHUNK);
+            /*
             response_body_vect.insert(response_body_vect.end(),
                                       cache_it->second.begin() + (client_session.send_message_index - client_session.send_message_header_size),
                                       cache_it->second.begin() + FILE_CHUNK + (client_session.send_message_index - client_session.send_message_header_size));
-
+*/
 
             pending_bytes = file_io.size() - FILE_CHUNK;
             client_session.send_message_has_more_bytes = true;
@@ -251,17 +268,17 @@ void HTTP_Message_Dispatcher::onClientRequest(ClientSession &client_session){
             //bytes.resize(file_io.size() - client_session.send_message_index + client_session.send_message_header_size);
             //file_io.read(bytes.data(), file_io.size() - client_session.send_message_index + client_session.send_message_header_size);
             long vres = file_io.size() - client_session.send_message_index + client_session.send_message_header_size;
-            //response_body_vect.resize(vres);
+            response_body_vect.resize(vres);
             //if(!cached){
-            //    file_io.read(response_body_vect.data(), file_io.size() - client_session.send_message_index + client_session.send_message_header_size);
+            file_io.read(response_body_vect.data(), file_io.size() - client_session.send_message_index + client_session.send_message_header_size);
             //} else {
 
-            //std::vector<char> tt2 = cache_it->second;
-            //std::vector<char> tt = cache_.find(url)->second;
-                response_body_vect.insert(response_body_vect.end(),
+
+            /*
+            response_body_vect.insert(response_body_vect.end(),
                                           cache_it->second.begin() + (client_session.send_message_index - client_session.send_message_header_size),
                                           cache_it->second.end());
-            //}
+                                          */
             client_session.send_message_has_more_bytes = false;
         }
 
@@ -327,6 +344,11 @@ void HTTP_Message_Dispatcher::onClientRequest(ClientSession &client_session){
     }
     client_session.send_message.insert(client_session.send_message.end(), response_body_vect.begin(), response_body_vect.end());
 
+    if (should_cache_response){
+        HTTP_Message_Dispatcher::cache_[client_session.request.request_path] = std::move(client_session.send_message);
+        client_session.cache_iterator = HTTP_Message_Dispatcher::cache_.find(client_session.request.request_path);
+        client_session.is_cached = true;
+    }
     /*
     //ypologizw keep-alive
     std::transform(request.begin(), request.end(), request.begin(), ::tolower);

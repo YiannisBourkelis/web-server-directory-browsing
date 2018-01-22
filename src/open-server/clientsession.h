@@ -2,6 +2,7 @@
 #define CLIENTSESSION_H
 
 #include <vector>
+#include <map>
 #include <http_header_parser.h>
 
 class ClientSession
@@ -18,6 +19,10 @@ public:
     long send_message_index = 0; //posa bytes exoun synolika stalei apo to arxeio, ean einai megalo. perilamvanei to megethos tou HTTP response header
     long send_message_header_size = 0;//to megethos tou HTTP response header. Afairontas to apo to send_message_index exw ta synolika bytes pou stalthikan
     HTTP_Header_parser request;//to request opws stalthike apo ton client
+
+    //cache specific
+    std::map<QString, std::vector<char>>::iterator cache_iterator;
+    bool is_cached = false;
 
 };
 

@@ -15,6 +15,7 @@ public:
     QString request_path;
 
     int parse();
+    bool is_dirty = true;
 };
 
 #endif // HTTP_HEADER_PARSER_H

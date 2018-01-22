@@ -8,18 +8,25 @@ HTTP_Header_parser::HTTP_Header_parser()
 
 int HTTP_Header_parser::parse()
 {
-    //metatrepw to client request se string gia na to analysw
-    std::string request(request_header.begin(), request_header.end());
+    if (is_dirty){
+        /*
+        //metatrepw to client request se string gia na to analysw
+        std::string request(request_header.begin(), request_header.end());
 
-    //lamvanw to directory pou zitithike
-    //GET dir /r/n
-    int rv = request.find_first_of("\r\n");
-    std::string get_line(request.begin() + 4, request.begin() + rv - 1);
-    int last_space = get_line.find_last_of(" ", get_line.size());
-    std::string url(get_line.begin(), get_line.begin() + last_space);
-    //url = "" + url + "";
+        //lamvanw to directory pou zitithike
+        //GET dir /r/n
+        int rv = request.find_first_of("\r\n");
+        std::string get_line(request.begin() + 4, request.begin() + rv - 1);
+        int last_space = get_line.find_last_of(" ", get_line.size());
+        std::string url(get_line.begin(), get_line.begin() + last_space);
+        //url = "" + url + "";
 
-    request_path = QString::fromStdString(url).replace("%20", " ");
+        request_path = QString::fromStdString(url).replace("%20", " ");
+
+        is_dirty = false;
+        */
+        request_path = "/usr/local/var/www/72b.html";
+    }
 
     return 0;
 }
