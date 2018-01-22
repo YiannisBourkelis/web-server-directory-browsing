@@ -218,13 +218,6 @@ void HTTP_Message_Dispatcher::onClientRequest(ClientSession &client_session){
     // check if file exists and if yes: Is it really a file and no directory?
     if (check_file.exists() && check_file.isFile()){
         //einai arxeio
-        QMimeDatabase db;
-        QMimeType mime;
-        mime = db.mimeTypeForFile(check_file);//ok einai grigori i function
-        mime_str = mime.name().toStdString();
-
-        QFile file_io(check_file.absoluteFilePath());
-
         client_session.cache_iterator = HTTP_Message_Dispatcher::cache_.find(client_session.request.request_path);
         bool cached = (client_session.cache_iterator != HTTP_Message_Dispatcher::cache_.end());
         should_cache_response = !cached;
@@ -233,6 +226,14 @@ void HTTP_Message_Dispatcher::onClientRequest(ClientSession &client_session){
             client_session.is_cached = true;
             return;
         }
+
+        QMimeDatabase db;
+        QMimeType mime;
+        mime = db.mimeTypeForFile(check_file);//ok einai grigori i function
+        mime_str = mime.name().toStdString();
+
+        QFile file_io(check_file.absoluteFilePath());
+
 
         //ypologismos bytes pros apostoli.
         int FILE_CHUNK = 1048576; //8192=8.1mb/s, 16384/32768=8.5mb/s 65536 262144 524288 >1048576 2097152 4194304
