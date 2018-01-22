@@ -9,7 +9,7 @@ HTTP_Header_parser::HTTP_Header_parser()
 int HTTP_Header_parser::parse()
 {
     if (is_dirty){
-        /*
+
         //metatrepw to client request se string gia na to analysw
         std::string request(request_header.begin(), request_header.end());
 
@@ -24,8 +24,8 @@ int HTTP_Header_parser::parse()
         request_path = QString::fromStdString(url).replace("%20", " ");
 
         is_dirty = false;
-        */
-        request_path = "/usr/local/var/www/72b.html";
+
+        //request_path = "/usr/local/var/www/72b.html";
     }
 
     return 0;
